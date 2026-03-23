@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+venv_new/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# Build outputs
+frontend/dist/
+frontend/build/
+backend/dist/
+backend/build/
+
+# Environment variables - IMPORTANT: Never commit these!
+.env
+.env.local
+.env.*.local
+*.env
+backend/.env
+legal_chatbot/backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Data files
+data/processed/legal_chunks.json
+data/processed/manifest.json
+data/*.pdf
+data/*.html
+data/*.txt
+data/*.crdownload
+
+# Uploaded files
+backend/uploads/
+uploads/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
