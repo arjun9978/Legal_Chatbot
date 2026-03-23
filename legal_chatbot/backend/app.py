@@ -24,14 +24,15 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback-secret-key')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 
-# Configure CORS to allow Vercel frontend
+# CORS Configuration - Allow Vercel frontend
 CORS(app, resources={
     r"/*": {
         "origins": [
-            "http://localhost:5173",
+            "http://localhost:5173",  # Local development
             "http://localhost:3000",
-            "https://legal-chatbot-git-main-arjun9978s-projects.vercel.app",
-            "https://*.vercel.app"
+            "https://legal-chatbot-seven.vercel.app",  # Your Vercel domain
+            "https://legal-chatbot-git-main-arjun9978s-projects.vercel.app",  # Vercel preview
+            "https://*.vercel.app"  # All Vercel preview deployments
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
