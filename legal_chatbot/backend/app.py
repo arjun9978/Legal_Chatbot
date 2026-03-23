@@ -40,6 +40,27 @@ CORS(app, resources={
     }
 })
 
+# Ensure CORS headers are added to ALL responses (including errors)
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000", 
+        "https://legal-chatbot-seven.vercel.app",
+        "https://legal-chatbot-git-main-arjun9978s-projects.vercel.app"
+    ]
+    
+    # Check if origin is allowed (including wildcard *.vercel.app)
+    if origin:
+        if origin in allowed_origins or origin.endswith('.vercel.app'):
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    
+    return response
+
 # MongoDB Connection
 try:
     client = MongoClient(os.getenv('MONGODB_URI'))
