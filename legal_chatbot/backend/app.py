@@ -16,6 +16,12 @@ import io
 # Load environment variables
 load_dotenv()
 
+# ============ FEATURE TOGGLE ============
+# Set USE_SIMPLE_API=true to use lightweight Gemini API (no ML models)
+# Set USE_SIMPLE_API=false to use full RAG pipeline (requires more memory)
+USE_SIMPLE_API = os.getenv('USE_SIMPLE_API', 'true').lower() == 'true'
+# ========================================
+
 # Add the scripts directory to the path to import rag_chain
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
 
@@ -196,13 +202,6 @@ def chat():
         token_data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
         user_email = token_data.get('email')
         
-        # Import here to avoid circular imports
-        import sys
-        import os
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
-        
-        from rag_chain import create_rag_chain, answer_legal_query
-        
         data = request.get_json()
         query = data.get('query')
         chat_id = data.get('chat_id', None)
@@ -210,56 +209,127 @@ def chat():
         if not query:
             return jsonify({'message': 'Query is required'}), 400
         
-        # Create RAG chain (cache this in production)
         print(f"[QUERY] Processing query from {user_email}: {query}")
-        rag_chain, retriever = create_rag_chain()
+        print(f"[MODE] Using {'Simple API' if USE_SIMPLE_API else 'RAG Pipeline'}")
         
-        # Fetch conversation history for this chat (for context in follow-up questions)
-        chat_history = []
-        uploaded_docs_text = ""
-        
-        if chat_id:
-            previous_messages = chats_collection.find({
-                'user_email': user_email,
-                'chat_id': chat_id
-            }).sort('created_at', 1).limit(10)  # Last 10 messages
+        # ============ MODE SELECTION ============
+        if USE_SIMPLE_API:
+            # SIMPLE API MODE - Uses Google Gemini directly (lightweight, <100MB memory)
+            import google.generativeai as genai
             
-            for msg in previous_messages:
-                chat_history.append({"role": "user", "content": msg['query']})
-                chat_history.append({"role": "assistant", "content": msg['response']})
+            # Fetch conversation history for context
+            chat_history_text = ""
+            uploaded_docs_text = ""
             
-            # Fetch any uploaded documents for this chat
-            uploaded_docs = uploaded_documents_collection.find({
-                'user_email': user_email,
-                'chat_id': chat_id
-            }).sort('uploaded_at', -1).limit(5)  # Last 5 uploaded docs
-            
-            for doc in uploaded_docs:
-                uploaded_docs_text += f"\\n\\n--- Uploaded Document: {doc['filename']} ---\\n{doc['content'][:3000]}\\n"  # First 3000 chars
-        
-        # Get response from RAG chain with conversation history and uploaded documents
-        response_text, retrieved_docs = answer_legal_query(
-            query, rag_chain, retriever, chat_history, uploaded_docs_text
-        )
-        
-        # Format sources from retrieved documents with better structure
-        sources = []
-        if retrieved_docs:
-            for idx, doc in enumerate(retrieved_docs, 1):
-                # Extract metadata
-                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
-                content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
+            if chat_id:
+                previous_messages = chats_collection.find({
+                    'user_email': user_email,
+                    'chat_id': chat_id
+                }).sort('created_at', 1).limit(5)
                 
-                source_entry = {
-                    'id': idx,
-                    'content': content[:300] + '...' if len(content) > 300 else content,
-                    'full_content': content,  # For detailed view
-                    'source_file': metadata.get('source_file', 'Legal Database'),
-                    'chunk_id': metadata.get('chunk_id', 'N/A'),
-                    'document_type': metadata.get('document_type', 'Legal Document'),
-                    'article_section': metadata.get('section', 'N/A')  # For constitutional articles
-                }
-                sources.append(source_entry)
+                for msg in previous_messages:
+                    chat_history_text += f"User: {msg['query']}\nAssistant: {msg['response']}\n\n"
+                
+                # Fetch uploaded documents
+                uploaded_docs = uploaded_documents_collection.find({
+                    'user_email': user_email,
+                    'chat_id': chat_id
+                }).sort('uploaded_at', -1).limit(3)
+                
+                for doc in uploaded_docs:
+                    uploaded_docs_text += f"\n--- Document: {doc['filename']} ---\n{doc['content'][:2000]}\n"
+            
+            # Configure Gemini API
+            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+            model = genai.GenerativeModel('gemini-pro')
+            
+            # Create prompt with legal context
+            system_prompt = """You are a legal assistant chatbot specializing in Indian law. 
+You help users understand legal concepts, constitutional articles, and provide legal information.
+Always provide accurate, professional legal information. If you're unsure, say so.
+Format your responses clearly with proper structure."""
+            
+            full_prompt = f"""{system_prompt}
+
+{f"Previous conversation:{chat_history_text}" if chat_history_text else ""}
+{f"Uploaded documents:{uploaded_docs_text}" if uploaded_docs_text else ""}
+
+User question: {query}
+
+Please provide a detailed, professional legal response."""
+            
+            # Get response from Gemini
+            response = model.generate_content(full_prompt)
+            response_text = response.text
+            
+            # Create sources for UI consistency
+            sources = [{
+                'id': 1,
+                'content': 'AI-generated legal information based on general legal knowledge.',
+                'full_content': 'This response is generated using AI. Please verify with official legal sources.',
+                'source_file': 'AI Legal Assistant',
+                'chunk_id': 'N/A',
+                'document_type': 'AI Response',
+                'article_section': 'General'
+            }]
+            
+        else:
+            # RAG PIPELINE MODE - Uses full ML stack (requires 2GB+ memory)
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+            
+            from rag_chain import create_rag_chain, answer_legal_query
+            
+            # Create RAG chain
+            rag_chain, retriever = create_rag_chain()
+            
+            # Fetch conversation history
+            chat_history = []
+            uploaded_docs_text = ""
+            
+            if chat_id:
+                previous_messages = chats_collection.find({
+                    'user_email': user_email,
+                    'chat_id': chat_id
+                }).sort('created_at', 1).limit(10)
+                
+                for msg in previous_messages:
+                    chat_history.append({"role": "user", "content": msg['query']})
+                    chat_history.append({"role": "assistant", "content": msg['response']})
+                
+                # Fetch uploaded documents
+                uploaded_docs = uploaded_documents_collection.find({
+                    'user_email': user_email,
+                    'chat_id': chat_id
+                }).sort('uploaded_at', -1).limit(5)
+                
+                for doc in uploaded_docs:
+                    uploaded_docs_text += f"\\n\\n--- Uploaded Document: {doc['filename']} ---\\n{doc['content'][:3000]}\\n"
+            
+            # Get response from RAG chain
+            response_text, retrieved_docs = answer_legal_query(
+                query, rag_chain, retriever, chat_history, uploaded_docs_text
+            )
+            
+            # Format sources from retrieved documents
+            sources = []
+            if retrieved_docs:
+                for idx, doc in enumerate(retrieved_docs, 1):
+                    metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+                    content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
+                    
+                    source_entry = {
+                        'id': idx,
+                        'content': content[:300] + '...' if len(content) > 300 else content,
+                        'full_content': content,
+                        'source_file': metadata.get('source_file', 'Legal Database'),
+                        'chunk_id': metadata.get('chunk_id', 'N/A'),
+                        'document_type': metadata.get('document_type', 'Legal Document'),
+                        'article_section': metadata.get('section', 'N/A')
+                    }
+                    sources.append(source_entry)
+        # ========================================
         
         # Save chat to MongoDB
         chat_document = {

@@ -6,6 +6,7 @@ pymongo
 bcrypt
 PyPDF2
 python-docx
+google-generativeai
 langchain
 langchain-community
 langchain-core
