@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { HiPlus, HiChatAlt2, HiTrash } from 'react-icons/hi'
 import Logo from './Logo'
+import { getApiUrl } from '../services/api'
+
+const API_URL = getApiUrl()
 
 export default function Sidebar({ onNewChat, onSelectChat, currentChatId }) {
   const [chats, setChats] = useState([])
@@ -14,7 +17,7 @@ export default function Sidebar({ onNewChat, onSelectChat, currentChatId }) {
 
   const fetchChats = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/chats', {
+      const response = await fetch(`${API_URL}/chats`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -50,7 +53,7 @@ export default function Sidebar({ onNewChat, onSelectChat, currentChatId }) {
     e.stopPropagation()
     
     try {
-      const response = await fetch(`http://localhost:5000/api/chats/${chatId}`, {
+      const response = await fetch(`${API_URL}/chats/${chatId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

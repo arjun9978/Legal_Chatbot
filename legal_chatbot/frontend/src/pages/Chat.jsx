@@ -7,6 +7,9 @@ import SourcePanel from '../components/SourcePanel'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { Sun, Moon, FileText, LogOut, Settings, ChevronDown } from 'lucide-react'
+import { getApiUrl } from '../services/api'
+
+const API_URL = getApiUrl()
 
 export default function Chat() {
   const navigate = useNavigate()
@@ -32,7 +35,7 @@ export default function Chat() {
     setLoading(true)
     
     try {
-      const response = await fetch(`http://localhost:5000/api/chats/${chatId}`, {
+      const response = await fetch(`${API_URL}/chats/${chatId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -63,7 +66,7 @@ export default function Chat() {
     setLoading(true)
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +126,7 @@ export default function Chat() {
       formData.append('file', file)
       formData.append('chat_id', activeChatId)
 
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

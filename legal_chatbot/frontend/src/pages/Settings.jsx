@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { ArrowLeft, User, Mail, Lock, Save } from 'lucide-react'
+import { getApiUrl } from '../services/api'
+
+const API_URL = getApiUrl()
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -28,7 +31,7 @@ export default function Settings() {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/profile', {
+      const response = await fetch(`${API_URL}/user/profile`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -52,7 +55,7 @@ export default function Settings() {
     setMessage({ type: '', text: '' })
 
     try {
-      const response = await fetch('http://localhost:5000/api/user/update-profile', {
+      const response = await fetch(`${API_URL}/user/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +99,7 @@ export default function Settings() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/user/change-password', {
+      const response = await fetch(`${API_URL}/user/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
