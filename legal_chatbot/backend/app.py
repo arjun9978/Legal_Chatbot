@@ -546,7 +546,8 @@ def health():
     return jsonify({'status': 'ok'}), 200
 
 if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5000))
     print("[STARTUP] Starting LegAI Backend Server...")
     print("[INFO] MongoDB Atlas connected")
-    print("[INFO] Server running on http://localhost:5000")
-    app.run(debug=True, port=5000, use_reloader=False)
+    print(f"[INFO] Server running on port {port}")
+    app.run(host='0.0.0.0', debug=True, port=port, use_reloader=False)
